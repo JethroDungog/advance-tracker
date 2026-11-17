@@ -463,6 +463,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   const [showManagePins, setShowManagePins] = useState(false)
   const [finishingProject, setFinishingProject] = useState<Project | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [historySearch, setHistorySearch] = useState('')
+  const [historyWorkerFilter, setHistoryWorkerFilter] = useState<string>('ALL')
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -590,6 +592,44 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   const pendingAdvances = advances.filter((a) => a.status === 'pending')
   const activeProjects = projects.filter((p) => p.status === 'active')
   const completedProjects = projects.filter((p) => p.status === 'completed')
+
+  const cleanedSearch = historySearch.trim().toLowerCase().replace(/[₱,]/g, '')
+
+  const filteredCompletedProjects = completedProjects.filter((p) => {
+    if (!cleanedSearch) return true
+    const nameMatch = p.name.toLowerCase().includes(cleanedSearch)
+    const laborClean = String(p.total_labor).replace(/[₱,]/g, '').toLowerCase()
+    const amountMatch = laborClean.includes(cleanedSearch)
+    return nameMatch || amountMatch
+  })
+
+  const filteredAdvances = advances.filter((a) => {
+    if (historyWorkerFilter !== 'ALL' && a.worker_id !== historyWorkerFilter) {
+      return false
+    }
+
+    if (!cleanedSearch) return true
+
+    // Worker name match
+    const workerMatch = a.worker_name.toLowerCase().includes(cleanedSearch)
+
+    // Project name match
+    const projectMatch = a.project_name
+      ? a.project_name.toLowerCase().includes(cleanedSearch)
+      : 'no project'.includes(cleanedSearch)
+
+    // Amount match (e.g. 3000, 1500, ₱3,000)
+    const amountClean = String(a.amount).replace(/[₱,]/g, '').toLowerCase()
+    const amountFormatted = formatPeso(a.amount).replace(/[₱,]/g, '').toLowerCase()
+    const amountMatch =
+      amountClean.includes(cleanedSearch) ||
+      amountFormatted.includes(cleanedSearch)
+
+    // Note match (Cash / GCash / etc.)
+    const noteMatch = a.note ? a.note.toLowerCase().includes(cleanedSearch) : false
+
+    return workerMatch || projectMatch || amountMatch || noteMatch
+  })
 
   function getProjectApprovedAdvances(projectId: string) {
     return advances.filter((a) => a.project_id === projectId && a.status === 'approved')
@@ -843,14 +883,109 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
 
           {showHistory && (
             <div className="mt-4 space-y-6">
+              {/* Search & Filter Bar */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 text-xl">
+                    🔍
+                  </div>
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Search by project name, worker name, or amount (₱)..."
+                    className="w-full pl-12 pr-12 py-3.5 border border-slate-300 rounded-xl text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:border-slate-600 font-medium"
+                  />
+                  {historySearch && (
+                    <button
+                      onClick={() => setHistorySearch('')}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 font-bold text-lg"
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Worker Filter Chips */}
+                {workers.length > 0 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
+                    <span className="text-sm font-semibold text-slate-500 whitespace-nowrap mr-1">
+                      Filter Worker:
+                    </span>
+                    <button
+                      onClick={() => setHistoryWorkerFilter('ALL')}
+                      className={`px-3.5 py-1.5 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
+                        historyWorkerFilter === 'ALL'
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {workers.map((w) => (
+                      <button
+                        key={w.id}
+                        onClick={() =>
+                          setHistoryWorkerFilter(
+                            historyWorkerFilter === w.id ? 'ALL' : w.id
+                          )
+                        }
+                        className={`px-3.5 py-1.5 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
+                          historyWorkerFilter === w.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {w.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Filter Summary Pill */}
+                {(historySearch || historyWorkerFilter !== 'ALL') && (
+                  <div className="flex items-center justify-between text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg">
+                    <span>
+                      Found{' '}
+                      <strong className="text-slate-900">
+                        {filteredAdvances.length}
+                      </strong>{' '}
+                      advance{filteredAdvances.length === 1 ? '' : 's'}
+                      {filteredCompletedProjects.length > 0 &&
+                        ` and ${filteredCompletedProjects.length} completed project(s)`}
+                      {historySearch && (
+                        <>
+                          {' '}
+                          matching &ldquo;
+                          <span className="font-semibold text-slate-900">
+                            {historySearch}
+                          </span>
+                          &rdquo;
+                        </>
+                      )}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setHistorySearch('')
+                        setHistoryWorkerFilter('ALL')
+                      }}
+                      className="text-xs text-rose-600 hover:text-rose-700 font-bold ml-2 underline whitespace-nowrap"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Completed projects */}
-              {completedProjects.length > 0 && (
+              {filteredCompletedProjects.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-xl font-bold text-slate-700">Completed Projects</h3>
-                  {completedProjects.map((proj) => {
+                  {filteredCompletedProjects.map((proj) => {
                     const approvedTotal = getProjectApprovedTotal(proj.id)
                     return (
-                      <div key={proj.id} className="bg-white rounded-2xl shadow-sm p-5">
+                      <div key={proj.id} className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-bold text-slate-900 text-lg">{proj.name}</p>
@@ -882,15 +1017,31 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
 
               {/* Full advances history */}
               <div>
-                <h3 className="text-xl font-bold text-slate-700 mb-3">All Advances (Most Recent First)</h3>
-                {advances.length === 0 ? (
-                  <p className="text-slate-400 text-center py-6">No advances recorded yet.</p>
+                <h3 className="text-xl font-bold text-slate-700 mb-3">
+                  All Advances {historySearch || historyWorkerFilter !== 'ALL' ? '(Filtered)' : '(Most Recent First)'}
+                </h3>
+                {filteredAdvances.length === 0 ? (
+                  <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-slate-100">
+                    <p className="text-slate-500 font-medium text-lg mb-2">No advances found</p>
+                    <p className="text-slate-400 text-sm mb-4">
+                      Try searching by another worker name, project name, or amount.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setHistorySearch('')
+                        setHistoryWorkerFilter('ALL')
+                      }}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-sm transition-colors"
+                    >
+                      Clear Search Filters
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {advances.map((adv) => (
+                    {filteredAdvances.map((adv) => (
                       <div
                         key={adv.id}
-                        className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-3"
+                        className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-3 border border-slate-100"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
