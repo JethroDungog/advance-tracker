@@ -1,14 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
+const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
 export const isSupabaseConfigured = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder') &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('placeholder')
+  rawUrl &&
+  !rawUrl.includes('placeholder') &&
+  rawKey &&
+  !rawKey.includes('placeholder')
 )
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+const supabaseUrl = rawUrl || 'https://placeholder.supabase.co'
+const supabaseAnonKey = rawKey || 'placeholder-anon-key'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
