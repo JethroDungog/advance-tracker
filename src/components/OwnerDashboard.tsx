@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
-import { supabase, DbUser, Project, Advance } from '@/lib/supabase'
+import { supabase, DbUser, Project, Advance, isSupabaseConfigured } from '@/lib/supabase'
+import { mockStore } from '@/lib/mockStore'
 import { formatPeso, formatDateTime, formatDate } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -62,6 +63,16 @@ function NewProjectModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
     const labor = parseFloat(amount)
     if (isNaN(labor) || labor <= 0) { toast.error('Enter a valid labor budget'); return }
     setSaving(true)
+
+    if (!isSupabaseConfigured) {
+      mockStore.addProject(name.trim(), labor)
+      setSaving(false)
+      toast.success('Project created!')
+      onSaved()
+      onClose()
+      return
+    }
+
     const { error } = await supabase.from('projects').insert({
       name: name.trim(),
       total_labor: labor,
@@ -152,6 +163,16 @@ function GiveAdvanceModal({
     if (!workerId) { toast.error('Select a worker'); return }
     if (isNaN(amt) || amt <= 0) { toast.error('Enter a valid amount'); return }
     setSaving(true)
+
+    if (!isSupabaseConfigured) {
+      mockStore.addAdvance(workerId, projectId === 'none' ? null : projectId, amt, method, 'approved')
+      setSaving(false)
+      toast.success('Advance recorded!')
+      onSaved()
+      onClose()
+      return
+    }
+
     const { error } = await supabase.from('advances').insert({
       worker_id: workerId,
       project_id: projectId === 'none' ? null : projectId,
@@ -270,6 +291,17 @@ function ManagePINsModal({
     if (!/^\d{4}$/.test(newPin)) { toast.error('PIN must be exactly 4 digits'); return }
     if (newPin !== confirmPin) { toast.error('PINs do not match'); return }
     setSaving(true)
+
+    if (!isSupabaseConfigured) {
+      mockStore.updateUserPin(userId, newPin)
+      setSaving(false)
+      toast.success('PIN updated!')
+      setEditing(null)
+      setNewPin('')
+      setConfirmPin('')
+      return
+    }
+
     const { error } = await supabase.from('users').update({ pin: newPin }).eq('id', userId)
     setSaving(false)
     if (error) { toast.error('Failed to update PIN: ' + error.message); return }
@@ -363,6 +395,16 @@ function FinishProjectModal({
 
   async function handleConfirm() {
     setSaving(true)
+
+    if (!isSupabaseConfigured) {
+      mockStore.finishProject(project.id)
+      setSaving(false)
+      toast.success('Project completed!')
+      onConfirmed()
+      onClose()
+      return
+    }
+
     const { error } = await supabase
       .from('projects')
       .update({ status: 'completed', completed_at: new Date().toISOString() })
@@ -426,6 +468,26 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
 
   const fetchAll = useCallback(async () => {
     try {
+      if (!isSupabaseConfigured) {
+        const fetchedWorkers = mockStore.getUsers().filter((u) => u.role === 'worker')
+        const fetchedProjects = mockStore.getProjects()
+        const rawAdvances = mockStore.getAdvances()
+
+        const workerMap = new Map(fetchedWorkers.map((w) => [w.id, w]))
+        const projectMap = new Map(fetchedProjects.map((p) => [p.id, p]))
+
+        const enriched: AdvanceWithRelations[] = rawAdvances.map((a) => ({
+          ...a,
+          worker_name: workerMap.get(a.worker_id)?.name ?? 'Unknown',
+          project_name: a.project_id ? (projectMap.get(a.project_id)?.name ?? null) : null,
+        }))
+
+        setWorkers(fetchedWorkers)
+        setProjects(fetchedProjects)
+        setAdvances(enriched)
+        return
+      }
+
       const [usersRes, projectsRes, advancesRes] = await Promise.all([
         supabase.from('users').select('*').eq('role', 'worker').order('name'),
         supabase.from('projects').select('*').order('created_at', { ascending: false }),
@@ -467,6 +529,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   useEffect(() => {
     fetchAll()
 
+    if (!isSupabaseConfigured) return
+
     const channel = supabase
       .channel('owner-dashboard-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'advances' }, fetchAll)
@@ -480,6 +544,13 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   // ── Actions ────────────────────────────────────────────────────────────────
 
   async function handleAdvanceAction(advanceId: string, newStatus: 'approved' | 'declined') {
+    if (!isSupabaseConfigured) {
+      mockStore.updateAdvanceStatus(advanceId, newStatus)
+      toast.success(newStatus === 'approved' ? '✅ Advance approved!' : '❌ Advance declined')
+      fetchAll()
+      return
+    }
+
     const { error } = await supabase
       .from('advances')
       .update({ status: newStatus })
@@ -493,6 +564,13 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   }
 
   async function handleSettleNoProject(workerId: string) {
+    if (!isSupabaseConfigured) {
+      mockStore.settleWorkerNoProjectAdvances(workerId)
+      toast.success('No-project advances settled!')
+      fetchAll()
+      return
+    }
+
     const { error } = await supabase
       .from('advances')
       .update({ status: 'settled' })

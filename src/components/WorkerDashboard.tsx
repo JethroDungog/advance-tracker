@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
-import { supabase, DbUser, Project, Advance } from '@/lib/supabase'
+import { supabase, DbUser, Project, Advance, isSupabaseConfigured } from '@/lib/supabase'
+import { mockStore } from '@/lib/mockStore'
 import { formatPeso, formatDate } from '@/lib/utils'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -113,6 +114,21 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
 
   const fetchData = useCallback(async () => {
     try {
+      if (!isSupabaseConfigured) {
+        const activeProjs = mockStore.getProjects().filter((p) => p.status === 'active')
+        const allProjs = mockStore.getProjects()
+        const workerAdvances = mockStore.getAdvances().filter((a) => a.worker_id === user.id)
+
+        const enriched: AdvanceWithProject[] = workerAdvances.map((a) => ({
+          ...a,
+          project: allProjs.find((p) => p.id === a.project_id) ?? null,
+        }))
+
+        setAdvances(enriched)
+        setActiveProjects(activeProjs)
+        return
+      }
+
       const [advancesRes, projectsRes] = await Promise.all([
         supabase
           .from('advances')
@@ -143,6 +159,8 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
 
   useEffect(() => {
     fetchData()
+
+    if (!isSupabaseConfigured) return
 
     const channel = supabase
       .channel(`worker-advances-${user.id}`)
@@ -218,6 +236,20 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
     try {
       const projectId =
         selectedProjectId === 'NO_PROJECT' ? null : selectedProjectId
+
+      if (!isSupabaseConfigured) {
+        mockStore.addAdvance(
+          user.id,
+          projectId,
+          parsedAmount,
+          `${paymentMethod}${note.trim() ? ` — ${note.trim()}` : ''}`,
+          'pending'
+        )
+        toast.success('Your advance request has been sent!')
+        fetchData()
+        closeModal()
+        return
+      }
 
       const { error } = await supabase.from('advances').insert({
         worker_id: user.id,

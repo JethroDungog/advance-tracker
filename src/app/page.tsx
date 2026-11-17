@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import PinPad from '@/components/PinPad'
-import { supabase } from '@/lib/supabase'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import type { DbUser } from '@/lib/supabase'
+import { mockStore } from '@/lib/mockStore'
 
 // Dashboards are loaded lazily — they don't exist yet but will be authored by other agents.
 // Using dynamic imports with ssr:false keeps this page client-only and avoids import errors
@@ -39,14 +40,37 @@ export default function HomePage() {
     setPinError('')
     setPinLoading(true)
     try {
-      const { data, error } = await supabase
+      if (!isSupabaseConfigured) {
+        // Fast local mock mode when Supabase credentials are not configured yet
+        await new Promise((r) => setTimeout(r, 200)) // brief natural response
+        const match = mockStore.findUserByPin(pin)
+        if (!match) {
+          setPinError('Incorrect PIN. Please try again.')
+          return
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(match))
+        setUser(match)
+        return
+      }
+
+      // Live Supabase query with a 5-second timeout safeguard to avoid infinite spinners
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timed out. Check your Supabase settings or network.')), 5000)
+      )
+
+      const queryPromise = supabase
         .from('users')
         .select('*')
         .eq('pin', pin)
         .maybeSingle()
 
+      const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as {
+        data: DbUser | null
+        error: { message: string } | null
+      }
+
       if (error) {
-        setPinError('Something went wrong. Please try again.')
+        setPinError(error.message || 'Something went wrong. Please try again.')
         return
       }
 
@@ -58,6 +82,9 @@ export default function HomePage() {
       const dbUser = data as DbUser
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dbUser))
       setUser(dbUser)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Connection error. Please try again.'
+      setPinError(msg)
     } finally {
       setPinLoading(false)
     }

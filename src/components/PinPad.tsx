@@ -18,12 +18,12 @@ const KEYS = [
 export default function PinPad({ onSubmit, error, loading }: PinPadProps) {
   const [pin, setPin] = useState('')
 
-  // Auto-submit when 4 digits are entered
+  // When error occurs, clear the entered pin so the user can re-try cleanly
   useEffect(() => {
-    if (pin.length === 4 && !loading) {
-      onSubmit(pin)
+    if (error) {
+      setPin('')
     }
-  }, [pin, loading, onSubmit])
+  }, [error])
 
   function handleKey(key: string) {
     if (loading) return
@@ -32,7 +32,11 @@ export default function PinPad({ onSubmit, error, loading }: PinPadProps) {
     } else if (key === '⌫') {
       setPin((p) => p.slice(0, -1))
     } else if (pin.length < 4) {
-      setPin((p) => p + key)
+      const nextPin = pin + key
+      setPin(nextPin)
+      if (nextPin.length === 4) {
+        onSubmit(nextPin)
+      }
     }
   }
 
