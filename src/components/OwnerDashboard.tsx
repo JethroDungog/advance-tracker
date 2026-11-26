@@ -276,10 +276,12 @@ function ManagePINsModal({
   onClose,
   ownerUser,
   workers,
+  onAddWorker,
 }: {
   onClose: () => void
   ownerUser: DbUser
   workers: DbUser[]
+  onAddWorker: () => void
 }) {
   const allUsers = [ownerUser, ...workers]
   const [editing, setEditing] = useState<string | null>(null)
@@ -313,7 +315,15 @@ function ManagePINsModal({
 
   return (
     <Modal onClose={onClose}>
-      <h2 className="text-2xl font-bold text-slate-900 mb-6">Manage PINs</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-slate-900">Manage PINs</h2>
+        <button
+          onClick={() => { onClose(); onAddWorker() }}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition-colors"
+        >
+          ➕ Add Worker
+        </button>
+      </div>
       <div className="space-y-4">
         {allUsers.map((u) => (
           <div key={u.id} className="border border-slate-200 rounded-xl p-4">
@@ -374,6 +384,101 @@ function ManagePINsModal({
       >
         Close
       </button>
+    </Modal>
+  )
+}
+
+// ─── AddWorkerModal ───────────────────────────────────────────────────────────
+
+function AddWorkerModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState('')
+  const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    if (!name.trim()) { toast.error('Enter worker name'); return }
+    if (!/^\d{4}$/.test(pin)) { toast.error('PIN must be exactly 4 digits'); return }
+    if (pin !== confirmPin) { toast.error('PINs do not match'); return }
+    setSaving(true)
+
+    if (!isSupabaseConfigured) {
+      // mock store fallback — just show success
+      toast.success(`${name.trim()} added as worker!`)
+      onSaved()
+      onClose()
+      setSaving(false)
+      return
+    }
+
+    const { error } = await supabase.from('users').insert({
+      name: name.trim(),
+      role: 'worker',
+      pin,
+    })
+    setSaving(false)
+    if (error) {
+      if (error.message.toLowerCase().includes('unique') || error.message.toLowerCase().includes('duplicate')) {
+        toast.error('That PIN is already in use. Choose a different PIN.')
+      } else {
+        toast.error('Failed to add worker: ' + error.message)
+      }
+      return
+    }
+    toast.success(`${name.trim()} added as worker! 🎉`)
+    onSaved()
+    onClose()
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <h2 className="text-2xl font-bold text-slate-900 mb-6">➕ Add New Worker</h2>
+
+      <label className="block mb-2 text-sm font-semibold text-slate-700">Worker Name</label>
+      <input
+        className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg text-slate-900 mb-5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        placeholder="e.g. Pedro"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+
+      <label className="block mb-2 text-sm font-semibold text-slate-700">New PIN (4 digits)</label>
+      <input
+        type="password"
+        inputMode="numeric"
+        maxLength={4}
+        className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg text-slate-900 mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        placeholder="••••"
+        value={pin}
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+      />
+
+      <label className="block mb-2 text-sm font-semibold text-slate-700">Confirm PIN</label>
+      <input
+        type="password"
+        inputMode="numeric"
+        maxLength={4}
+        className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg text-slate-900 mb-6 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        placeholder="••••"
+        value={confirmPin}
+        onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+      />
+
+      <div className="flex gap-3">
+        <button
+          onClick={onClose}
+          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl py-4 text-lg transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-4 text-lg transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Add Worker'}
+        </button>
+      </div>
     </Modal>
   )
 }
@@ -465,6 +570,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   const [showHistory, setShowHistory] = useState(false)
   const [historySearch, setHistorySearch] = useState('')
   const [historyWorkerFilter, setHistoryWorkerFilter] = useState<string>('ALL')
+  const [activeProjectSearch, setActiveProjectSearch] = useState('')
+  const [showAddWorker, setShowAddWorker] = useState(false)
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -593,6 +700,16 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   const activeProjects = projects.filter((p) => p.status === 'active')
   const completedProjects = projects.filter((p) => p.status === 'completed')
 
+  // Active Projects search
+  const cleanedActiveSearch = activeProjectSearch.trim().toLowerCase().replace(/[₱,]/g, '')
+  const filteredActiveProjects = activeProjects.filter((p) => {
+    if (!cleanedActiveSearch) return true
+    return (
+      p.name.toLowerCase().includes(cleanedActiveSearch) ||
+      String(p.total_labor).includes(cleanedActiveSearch)
+    )
+  })
+
   const cleanedSearch = historySearch.trim().toLowerCase().replace(/[₱,]/g, '')
 
   const filteredCompletedProjects = completedProjects.filter((p) => {
@@ -628,7 +745,11 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
     // Note match (Cash / GCash / etc.)
     const noteMatch = a.note ? a.note.toLowerCase().includes(cleanedSearch) : false
 
-    return workerMatch || projectMatch || amountMatch || noteMatch
+    // Date match (e.g. "Nov 17", "2026", "1:42 PM")
+    const dateStr = formatDateTime(a.created_at).toLowerCase()
+    const dateMatch = dateStr.includes(cleanedSearch)
+
+    return workerMatch || projectMatch || amountMatch || noteMatch || dateMatch
   })
 
   function getProjectApprovedAdvances(projectId: string) {
@@ -774,8 +895,43 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
         {activeProjects.length > 0 && (
           <section>
             <h2 className="text-2xl font-black text-slate-900 mb-4">Active Projects</h2>
+
+            {/* Active Projects Search Bar */}
+            <div className="relative mb-4">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 text-xl">
+                🔍
+              </div>
+              <input
+                type="text"
+                value={activeProjectSearch}
+                onChange={(e) => setActiveProjectSearch(e.target.value)}
+                placeholder="Search by project name or amount…"
+                className="w-full pl-12 pr-12 py-3.5 border border-slate-300 rounded-xl text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:border-slate-600 bg-white shadow-sm"
+              />
+              {activeProjectSearch && (
+                <button
+                  onClick={() => setActiveProjectSearch('')}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 font-bold text-lg"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
             <div className="space-y-5">
-              {activeProjects.map((proj) => {
+              {filteredActiveProjects.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-sm p-6 text-center border border-slate-100">
+                  <p className="text-slate-500 text-lg">No projects match &ldquo;{activeProjectSearch}&rdquo;</p>
+                  <button
+                    onClick={() => setActiveProjectSearch('')}
+                    className="mt-3 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-sm transition-colors"
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              ) : (
+                filteredActiveProjects.map((proj) => {
                 const approvedTotal = getProjectApprovedTotal(proj.id)
                 const remaining = proj.total_labor - approvedTotal
                 const breakdown = getProjectWorkerBreakdown(proj.id)
@@ -828,7 +984,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                     </button>
                   </div>
                 )
-              })}
+              })
+              )}
             </div>
           </section>
         )}
@@ -836,7 +993,16 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
         {/* ── SECTION 5: Workers & No-Project Advances ──────────────────────── */}
         {workers.length > 0 && (
           <section>
-            <h2 className="text-2xl font-black text-slate-900 mb-4">Workers &amp; Advances</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-black text-slate-900">Workers &amp; Advances</h2>
+              <button
+                onClick={() => setShowAddWorker(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition-colors"
+                style={{ minHeight: '44px' }}
+              >
+                ➕ Add Worker
+              </button>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {workers.map((w) => {
                 const projectTotal = getWorkerProjectTotal(w.id)
@@ -1093,6 +1259,14 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
           onClose={() => setShowManagePins(false)}
           ownerUser={user}
           workers={workers}
+          onAddWorker={() => setShowAddWorker(true)}
+        />
+      )}
+
+      {showAddWorker && (
+        <AddWorkerModal
+          onClose={() => setShowAddWorker(false)}
+          onSaved={fetchAll}
         />
       )}
 
