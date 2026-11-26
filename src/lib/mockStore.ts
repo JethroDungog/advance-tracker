@@ -91,6 +91,23 @@ export const mockStore = {
     return users.find((u) => u.pin === pin)
   },
 
+  addWorker: (name: string, pin: string): { user?: DbUser; error?: string } => {
+    const users = mockStore.getUsers()
+    if (users.some((u) => u.pin === pin)) {
+      return { error: 'That PIN is already in use. Choose a different PIN.' }
+    }
+    const newUser: DbUser = {
+      id: 'user-' + Date.now(),
+      name: name.trim(),
+      role: 'worker',
+      pin,
+      created_at: new Date().toISOString(),
+    }
+    users.push(newUser)
+    saveToStorage(KEY_USERS, users)
+    return { user: newUser }
+  },
+
   updateUserPin: (userId: string, newPin: string): boolean => {
     const users = mockStore.getUsers()
     const idx = users.findIndex((u) => u.id === userId)

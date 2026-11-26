@@ -42,12 +42,12 @@ export default function PinPad({ onSubmit, error, loading }: PinPadProps) {
 
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center px-6 py-10"
+      className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden px-4 py-10"
       style={{ background: '#F8FAFC' }}
     >
       {/* App title */}
       <h1
-        className="mb-1 text-4xl font-extrabold tracking-tight"
+        className="mb-1 text-center text-3xl sm:text-4xl font-extrabold tracking-tight"
         style={{ color: '#0F172A' }}
       >
         Advance Tracker

@@ -403,11 +403,15 @@ function AddWorkerModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     setSaving(true)
 
     if (!isSupabaseConfigured) {
-      // mock store fallback — just show success
+      const result = mockStore.addWorker(name.trim(), pin)
+      setSaving(false)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
       toast.success(`${name.trim()} added as worker!`)
       onSaved()
       onClose()
-      setSaving(false)
       return
     }
 
@@ -798,13 +802,13 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A]">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] overflow-x-hidden w-full">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-8 w-full">{/* overflow-x-hidden prevents horizontal scroll */}
 
         {/* ── SECTION 1: Header ─────────────────────────────────────────────── */}
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900">Owner Dashboard</h1>
+        <header className="flex items-start justify-between gap-3 w-full">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl font-black text-slate-900 truncate">Owner Dashboard</h1>
             <button
               onClick={() => setShowManagePins(true)}
               className="mt-1 text-slate-500 text-sm underline hover:text-slate-700 transition-colors"
@@ -814,38 +818,38 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
           </div>
           <button
             onClick={onLogout}
-            className="bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl px-5 py-3 text-base transition-colors whitespace-nowrap"
+            className="bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl px-4 py-3 text-sm transition-colors whitespace-nowrap flex-shrink-0"
             style={{ minHeight: '56px' }}
           >
-            Switch User / Log Out
+            Log Out
           </button>
         </header>
 
         {/* ── SECTION 2: Pending Advances Banner ────────────────────────────── */}
         {pendingAdvances.length > 0 && (
           <section>
-            <h2 className="text-xl font-bold text-amber-700 mb-3 flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+            <h2 className="text-xl font-bold text-amber-700 mb-3 flex items-center gap-2 flex-wrap">
+              <span className="inline-block w-3 h-3 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
               {pendingAdvances.length} Pending Advance{pendingAdvances.length > 1 ? 's' : ''} — Action Required
             </h2>
             <div className="space-y-4">
               {pendingAdvances.map((adv) => (
                 <div
                   key={adv.id}
-                  className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 shadow-sm"
+                  className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 shadow-sm w-full overflow-hidden"
                 >
-                  <div className="mb-3">
-                    <p className="font-black text-slate-900 text-2xl">{adv.worker_name}</p>
+                  <div className="mb-3 min-w-0">
+                    <p className="font-black text-slate-900 text-2xl truncate">{adv.worker_name}</p>
                     <p
                       className="font-black text-slate-900"
                       style={{ fontSize: '2rem', lineHeight: 1.1 }}
                     >
                       {formatPeso(adv.amount)}
                     </p>
-                    <p className="text-slate-600 mt-1 text-lg">
+                    <p className="text-slate-600 mt-1 text-lg break-words">
                       Advance {adv.project_name ? `— ${adv.project_name}` : '(No Project)'}
                     </p>
-                    <div className="flex gap-3 mt-1 text-slate-500 text-sm">
+                    <div className="flex gap-3 mt-1 text-slate-500 text-sm flex-wrap">
                       <span>{adv.note}</span>
                       <span>·</span>
                       <span>{formatDateTime(adv.created_at)}</span>
@@ -854,14 +858,14 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                   <div className="flex gap-3">
                     <button
                       onClick={() => handleAdvanceAction(adv.id, 'approved')}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl transition-colors text-lg tracking-wide"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl transition-colors text-lg tracking-wide min-w-0"
                       style={{ minHeight: '56px' }}
                     >
                       ✓ APPROVE
                     </button>
                     <button
                       onClick={() => handleAdvanceAction(adv.id, 'declined')}
-                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl transition-colors text-lg tracking-wide"
+                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl transition-colors text-lg tracking-wide min-w-0"
                       style={{ minHeight: '56px' }}
                     >
                       ✕ DECLINE
@@ -905,8 +909,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                 type="text"
                 value={activeProjectSearch}
                 onChange={(e) => setActiveProjectSearch(e.target.value)}
-                placeholder="Search by project name or amount…"
-                className="w-full pl-12 pr-12 py-3.5 border border-slate-300 rounded-xl text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:border-slate-600 bg-white shadow-sm"
+                placeholder="Search project name or amount…"
+                className="w-full pl-11 pr-11 py-3.5 border border-slate-300 rounded-xl text-base sm:text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:border-slate-600 bg-white shadow-sm"
               />
               {activeProjectSearch && (
                 <button
@@ -936,8 +940,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                 const remaining = proj.total_labor - approvedTotal
                 const breakdown = getProjectWorkerBreakdown(proj.id)
                 return (
-                  <div key={proj.id} className="bg-white rounded-2xl shadow-md p-6">
-                    <h3 className="font-black text-slate-900" style={{ fontSize: '1.5rem' }}>
+                  <div key={proj.id} className="bg-white rounded-2xl shadow-md p-5 w-full overflow-hidden">
+                    <h3 className="font-black text-slate-900 break-words" style={{ fontSize: '1.4rem' }}>
                       {proj.name}
                     </h3>
                     <div className="mt-3 space-y-1 text-lg text-slate-700">
@@ -993,11 +997,11 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
         {/* ── SECTION 5: Workers & No-Project Advances ──────────────────────── */}
         {workers.length > 0 && (
           <section>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
               <h2 className="text-2xl font-black text-slate-900">Workers &amp; Advances</h2>
               <button
                 onClick={() => setShowAddWorker(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition-colors"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition-colors flex-shrink-0"
                 style={{ minHeight: '44px' }}
               >
                 ➕ Add Worker
@@ -1008,8 +1012,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                 const projectTotal = getWorkerProjectTotal(w.id)
                 const noProjectTotal = getWorkerNoProjectTotal(w.id)
                 return (
-                  <div key={w.id} className="bg-white rounded-2xl shadow-md p-5">
-                    <p className="font-black text-slate-900 text-xl mb-3">{w.name}</p>
+                  <div key={w.id} className="bg-white rounded-2xl shadow-md p-5 overflow-hidden w-full">
+                    <p className="font-black text-slate-900 text-xl mb-3 truncate">{w.name}</p>
                     <div className="space-y-2 text-base">
                       <div className="flex justify-between text-slate-700">
                         <span>Project Advances</span>
@@ -1048,9 +1052,9 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
           </button>
 
           {showHistory && (
-            <div className="mt-4 space-y-6">
+            <div className="mt-4 space-y-6 w-full">
               {/* Search & Filter Bar */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3 w-full overflow-hidden">
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 text-xl">
                     🔍
@@ -1059,8 +1063,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                     type="text"
                     value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
-                    placeholder="Search by project name, worker name, or amount (₱)..."
-                    className="w-full pl-12 pr-12 py-3.5 border border-slate-300 rounded-xl text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:border-slate-600 font-medium"
+                    placeholder="Search project, worker, date, or ₱..."
+                    className="w-full pl-11 pr-11 py-3.5 border border-slate-300 rounded-xl text-base sm:text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-600 focus:border-slate-600 font-medium"
                   />
                   {historySearch && (
                     <button
@@ -1075,7 +1079,7 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
 
                 {/* Worker Filter Chips */}
                 {workers.length > 0 && (
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
+                  <div className="flex items-center gap-2 flex-wrap pb-1 pt-1">
                     <span className="text-sm font-semibold text-slate-500 whitespace-nowrap mr-1">
                       Filter Worker:
                     </span>
@@ -1111,8 +1115,8 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
 
                 {/* Filter Summary Pill */}
                 {(historySearch || historyWorkerFilter !== 'ALL') && (
-                  <div className="flex items-center justify-between text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg">
-                    <span>
+                  <div className="flex items-center justify-between flex-wrap gap-2 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg">
+                    <span className="min-w-0 break-words">
                       Found{' '}
                       <strong className="text-slate-900">
                         {filteredAdvances.length}
@@ -1136,7 +1140,7 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                         setHistorySearch('')
                         setHistoryWorkerFilter('ALL')
                       }}
-                      className="text-xs text-rose-600 hover:text-rose-700 font-bold ml-2 underline whitespace-nowrap"
+                      className="text-xs text-rose-600 hover:text-rose-700 font-bold underline whitespace-nowrap"
                     >
                       Clear Filters
                     </button>
@@ -1151,26 +1155,26 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                   {filteredCompletedProjects.map((proj) => {
                     const approvedTotal = getProjectApprovedTotal(proj.id)
                     return (
-                      <div key={proj.id} className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-bold text-slate-900 text-lg">{proj.name}</p>
+                      <div key={proj.id} className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 w-full overflow-hidden">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-slate-900 text-lg break-words">{proj.name}</p>
                             {proj.completed_at && (
                               <p className="text-slate-500 text-sm">
                                 Completed {formatDate(proj.completed_at)}
                               </p>
                             )}
                           </div>
-                          <span className="bg-slate-100 text-slate-600 text-sm font-semibold px-3 py-1 rounded-full">
+                          <span className="bg-slate-100 text-slate-600 text-sm font-semibold px-3 py-1 rounded-full flex-shrink-0">
                             Done
                           </span>
                         </div>
                         <div className="mt-3 space-y-1 text-base text-slate-700">
-                          <div className="flex justify-between">
+                          <div className="flex justify-between gap-2">
                             <span>Total Labor</span>
                             <span className="font-semibold">{formatPeso(proj.total_labor)}</span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between gap-2">
                             <span>Total Advances</span>
                             <span className="font-semibold">{formatPeso(approvedTotal)}</span>
                           </div>
@@ -1207,17 +1211,17 @@ export default function OwnerDashboard({ user, onLogout }: OwnerDashboardProps) 
                     {filteredAdvances.map((adv) => (
                       <div
                         key={adv.id}
-                        className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-3 border border-slate-100"
+                        className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-3 border border-slate-100 w-full overflow-hidden"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-slate-900">{adv.worker_name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900 break-words">{adv.worker_name}</span>
                             <span className="text-slate-400">·</span>
-                            <span className="text-slate-600 text-sm">
+                            <span className="text-slate-600 text-sm break-words">
                               {adv.project_name ? `Advance — ${adv.project_name}` : 'Advance (No Project)'}
                             </span>
                           </div>
-                          <div className="text-slate-500 text-sm mt-0.5">
+                          <div className="text-slate-500 text-sm mt-0.5 break-words">
                             {adv.note} · {formatDateTime(adv.created_at)}
                           </div>
                         </div>

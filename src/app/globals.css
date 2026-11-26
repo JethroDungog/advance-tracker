@@ -7,6 +7,8 @@
   html {
     font-size: 18px;
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   body {
@@ -14,6 +16,8 @@
     min-height: 100dvh;
     font-size: 1rem; /* = 18px */
     line-height: 1.75;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   /* Smooth scrolling */

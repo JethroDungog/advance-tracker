@@ -279,15 +279,15 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen w-full overflow-x-hidden"
       style={{ background: '#F8FAFC', color: '#0F172A' }}
     >
-      <div className="max-w-lg mx-auto px-4 pb-16">
+      <div className="max-w-lg mx-auto px-4 pb-16 w-full">
 
         {/* ── SECTION 1: Header ── */}
-        <div className="flex items-start justify-between pt-8 pb-2">
-          <div>
-            <h1 className="font-bold leading-tight" style={{ fontSize: 28 }}>
+        <div className="flex items-start justify-between gap-3 pt-8 pb-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="font-bold leading-tight truncate" style={{ fontSize: 28 }}>
               Hello, {user.name}
             </h1>
             <p className="text-slate-500 mt-1" style={{ fontSize: 18 }}>
@@ -296,7 +296,7 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
           </div>
           <button
             onClick={onLogout}
-            className="bg-white border border-slate-200 text-slate-600 font-semibold rounded-xl px-4 shadow-sm active:scale-95 transition-transform"
+            className="bg-white border border-slate-200 text-slate-600 font-semibold rounded-xl px-4 shadow-sm active:scale-95 transition-transform flex-shrink-0 whitespace-nowrap"
             style={{ minHeight: 56, fontSize: 15 }}
           >
             Switch User
@@ -307,22 +307,22 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
         <div className="grid grid-cols-1 gap-4 mt-6 sm:grid-cols-2">
 
           {/* Box 1 — Active Project Advances */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
             <p className="text-slate-500 font-medium mb-2" style={{ fontSize: 14 }}>
               Active Project Advances
             </p>
             <p
-              className="font-bold text-emerald-600"
-              style={{ fontSize: 36 }}
+              className="font-bold text-emerald-600 break-words"
+              style={{ fontSize: 32 }}
             >
               {formatPeso(totalActiveProject)}
             </p>
             {Object.keys(activeProjectBreakdown).length > 0 ? (
               <ul className="mt-3 space-y-1">
                 {Object.values(activeProjectBreakdown).map((entry) => (
-                  <li key={entry.name} className="text-slate-500 text-sm flex justify-between">
-                    <span>{entry.name}</span>
-                    <span className="font-semibold text-slate-700">
+                  <li key={entry.name} className="text-slate-500 text-sm flex justify-between gap-2">
+                    <span className="min-w-0 break-words">{entry.name}</span>
+                    <span className="font-semibold text-slate-700 flex-shrink-0">
                       {formatPeso(entry.total)}
                     </span>
                   </li>
@@ -334,14 +334,14 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
           </div>
 
           {/* Box 2 — No-Project Advances */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
             <p className="text-slate-500 font-medium mb-2" style={{ fontSize: 14 }}>
               No-Project Advances (Unpaid)
             </p>
             <p
-              className="font-bold"
+              className="font-bold break-words"
               style={{
-                fontSize: 36,
+                fontSize: 32,
                 color: totalNoProject > 0 ? '#f43f5e' : '#94a3b8',
               }}
             >
@@ -521,7 +521,7 @@ export default function WorkerDashboard({ user, onLogout }: WorkerDashboardProps
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0"
-                      className="flex-1 outline-none bg-transparent font-bold text-[#0F172A] py-4"
+                      className="flex-1 min-w-0 w-full outline-none bg-transparent font-bold text-[#0F172A] py-4"
                       style={{ fontSize: 32 }}
                       inputMode="numeric"
                       min="1"
